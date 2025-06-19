@@ -50,7 +50,7 @@ export default function Index() {
   return (
     <View style={styles.container}>
       <Image
-        source={require('./assets/rafinity-logo.png')}
+        source={require('../assets/rafinity-logo.png')}
         style={styles.logo}
         resizeMode="contain"
       />
