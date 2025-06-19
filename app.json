@@ -2,6 +2,7 @@
   "expo": {
     "name": "RAFinity",
     "slug": "raffinity-app",
+    "scheme": "raffinity-app",
     "platforms": ["ios", "android", "web"],
     "version": "1.0.0",
     "orientation": "portrait",
@@ -32,6 +33,14 @@
     "web": {
       "favicon": "./assets/rafinity-logo.png"
     },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": false
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "f597ac33-7135-451a-b9db-a18c091f23f6"
