@@ -1,0 +1,12 @@
+{
+  "build": {
+    "ios": {
+      "workflow": "managed",
+      "scheme": "ios",
+      "buildConfiguration": "Release"
+    }
+  },
+  "cli": {
+    "version": ">= 3.0.0"
+  }
+}

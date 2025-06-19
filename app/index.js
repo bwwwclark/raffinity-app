@@ -1,25 +1,60 @@
+import { useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet, Image } from 'react-native';
+import { router } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import * as Font from 'expo-font';
+import { Asset } from 'expo-asset';
 
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+// Preload assets
+const prepareAssets = async () => {
+  try {
+    await Font.loadAsync({
+      // Example font preload (if you use custom fonts)
+      // 'SpaceMono': require('./assets/fonts/SpaceMono-Regular.ttf'),
+    });
 
-export default function SplashScreen() {
-  const router = useRouter();
+    await Asset.loadAsync([
+      require('../assets/rafinity-logo.png'),
+    ]);
+  } catch (e) {
+    console.warn('Asset loading failed', e);
+  }
+};
 
-  const handleStart = () => {
-    router.replace('/home'); // navigate to main screen
-  };
+export default function Index() {
+  useEffect(() => {
+    const init = async () => {
+      try {
+        // Keep splash screen visible while loading assets
+        await SplashScreen.preventAutoHideAsync();
+        await prepareAssets();
+
+        // Simulate slight delay (e.g., for animation or data fetch)
+        setTimeout(() => {
+          try {
+            router.replace('/home');
+          } catch (e) {
+            console.error('Navigation error:', e);
+          }
+        }, 500);
+      } catch (e) {
+        console.error('App init error:', e);
+      } finally {
+        await SplashScreen.hideAsync();
+      }
+    };
+
+    init();
+  }, []);
 
   return (
     <View style={styles.container}>
-      <Image source={require('../assets/rafinity-logo.png')} style={styles.logo} />
-      <Text style={styles.title}>Welcome to RAFinity</Text>
-      <Text style={styles.description}>
-        Quickly search ICD-10 codes and identify risk adjustment factor (RAF) scores for efficient medical documentation and HCC review.
-      </Text>
-      <TouchableOpacity style={styles.button} onPress={handleStart}>
-        <Text style={styles.buttonText}>Get Started</Text>
-      </TouchableOpacity>
+      <Image
+        source={require('./assets/rafinity-logo.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+      <ActivityIndicator size="large" color="#007AFF" />
     </View>
   );
 }
@@ -27,36 +62,13 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    backgroundColor: '#fff',
   },
   logo: {
-    width: 320,  // Increased from 160
-    height: 120, // Increased from 60
-    resizeMode: 'contain',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  description: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  button: {
-    backgroundColor: '#007BFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 6,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
+    width: 160,
+    height: 160,
+    marginBottom: 20,
   },
 });
