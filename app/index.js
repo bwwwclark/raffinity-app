@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Image } from 'react-native';
 import { router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -6,30 +6,32 @@ import * as Font from 'expo-font';
 import { Asset } from 'expo-asset';
 
 // Preload assets
-const prepareAssets = async () => {
+const prepareAssets = async (setLogoLoaded) => {
   try {
     await Font.loadAsync({
-      // Example font preload (if you use custom fonts)
-      // 'SpaceMono': require('./assets/fonts/SpaceMono-Regular.ttf'),
+      // Load fonts here if needed
     });
 
     await Asset.loadAsync([
       require('../assets/rafinity-logo.png'),
     ]);
+
+    setLogoLoaded(true);
   } catch (e) {
     console.warn('Asset loading failed', e);
+    setLogoLoaded(false);
   }
 };
 
 export default function Index() {
+  const [logoLoaded, setLogoLoaded] = useState(true);
+
   useEffect(() => {
     const init = async () => {
       try {
-        // Keep splash screen visible while loading assets
         await SplashScreen.preventAutoHideAsync();
-        await prepareAssets();
+        await prepareAssets(setLogoLoaded);
 
-        // Simulate slight delay (e.g., for animation or data fetch)
         setTimeout(() => {
           try {
             router.replace('/home');
@@ -49,11 +51,13 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      <Image
-        source={require('../assets/rafinity-logo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+      {logoLoaded && (
+        <Image
+          source={require('../assets/rafinity-logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      )}
       <ActivityIndicator size="large" color="#007AFF" />
     </View>
   );
