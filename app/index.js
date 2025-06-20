@@ -29,7 +29,7 @@ export default function Index() {
     <View style={styles.container}>
       {!imageError ? (
         <Image
-          source={require('../assets/RAFinity_GooglePlay_512x512.png')}
+          source={require('../assets/RAFinitySplash1.png')}
           style={styles.logo}
           resizeMode="contain"
           onError={(error) => {
@@ -42,6 +42,10 @@ export default function Index() {
           <Text style={styles.logoText}>RAFFINITY</Text>
         </View>
       )}
+      
+      <Text style={styles.descriptionText}>
+        Instantly search ICD-10 codes and RAF values. Designed for clinicians in value-based care. Save time, improve accuracy, and boost reimbursement.
+      </Text>
       
       {isReady ? (
         <TouchableOpacity style={styles.continueButton} onPress={handleContinue}>
@@ -60,11 +64,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#fff',
+    paddingHorizontal: 20,
   },
   logo: {
     width: Math.min(width * 0.6, 200), // 60% of screen width, max 200px
     height: Math.min(width * 0.6, 200), // Keep it square
-    marginBottom: 60,
+    marginBottom: 30,
   },
   logoContainer: {
     width: Math.min(width * 0.6, 200),
@@ -73,7 +78,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f8f9fa',
     borderRadius: 20,
-    marginBottom: 60,
+    marginBottom: 30,
     borderWidth: 2,
     borderColor: '#007AFF',
   },
@@ -82,6 +87,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#007AFF',
     textAlign: 'center',
+  },
+  descriptionText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 40,
+    paddingHorizontal: 10,
+    maxWidth: width * 0.85,
   },
   loadingText: {
     fontSize: 16,
