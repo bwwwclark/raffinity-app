@@ -1,9 +1,14 @@
 {
   "expo": {
+    "plugins": ["react-native-purchases"],
     "name": "RAFinity",
     "slug": "raffinity-app",
     "scheme": "raffinity-app",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/rafinity-logo.png",
@@ -15,7 +20,9 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "bundleIdentifier": "com.rafinity.app",
       "buildNumber": "1.0.1",
@@ -28,18 +35,21 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/rafinity-logo.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.rafinity.app"
     },
     "web": {
       "favicon": "./assets/rafinity-logo.png"
     },
     "plugins": [
+        "react-native-kochava-measurement/expo-kochava",
       [
         "expo-router",
         {
           "origin": false
         }
       ]
+      
     ],
     "extra": {
       "eas": {
