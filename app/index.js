@@ -7,8 +7,7 @@ import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 KochavaMeasurement.instance.registerIosAppGuid('korafinity-qefta');
 KochavaMeasurement.instance.start();
 
-const RC_IOS_KEY = "appl_aaaIaGlejOqYoTcKNRDkOhSueDQ"; // replace with real
-const RC_ANDROID_KEY = "your_android_api_key";
+const RC_IOS_KEY = "appl_aaaIaGlejOqYoTcKNRDkOhSueDQ";
 
 const { width } = Dimensions.get('window');
 
@@ -24,8 +23,6 @@ export default function Index() {
 
         if (Platform.OS === 'ios') {
           await Purchases.configure({ apiKey: RC_IOS_KEY });
-        } else if (Platform.OS === 'android') {
-          await Purchases.configure({ apiKey: RC_ANDROID_KEY });
         }
 
         const info = await Purchases.getCustomerInfo();

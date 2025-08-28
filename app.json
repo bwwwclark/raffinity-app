@@ -1,6 +1,5 @@
 {
   "expo": {
-    "plugins": ["react-native-purchases"],
     "name": "RAFinity",
     "slug": "raffinity-app",
     "scheme": "raffinity-app",
@@ -42,14 +41,13 @@
       "favicon": "./assets/rafinity-logo.png"
     },
     "plugins": [
-        "react-native-kochava-measurement/expo-kochava",
+      "react-native-kochava-measurement/expo-kochava",
       [
         "expo-router",
         {
           "origin": false
         }
       ]
-      
     ],
     "extra": {
       "eas": {

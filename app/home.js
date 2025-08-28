@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import {
   SafeAreaView,
@@ -10,18 +10,58 @@ import {
   ActivityIndicator,
   Image,
   Dimensions,
+  Alert,
 } from 'react-native';
 import Fuse from 'fuse.js';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 const { width } = Dimensions.get('window');
 const DATA_URL = 'https://raw.githubusercontent.com/bwwwclark/Rafinity-data/main/icdData_full.json';
 
+// Memoized list item component to prevent unnecessary re-renders
+const ListItem = React.memo(({ item, onPress }) => (
+  <TouchableOpacity onPress={() => onPress(item)}>
+    <View
+      style={{
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={{ fontWeight: 'bold', fontSize: 16 }}>
+          {item['Diagnosis Code (ICD-10)']}
+        </Text>
+        {item['Has V28 HCC code'] === 'Yes' && (
+          <View
+            style={{
+              backgroundColor: '#007BFF',
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              borderRadius: 4,
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 12 }}>CMS-HCC V28</Text>
+          </View>
+        )}
+      </View>
+      <Text style={{ color: '#555', marginTop: 2 }}>{item['Description']}</Text>
+    </View>
+  </TouchableOpacity>
+));
+
 export default function HomeScreen() {
   const [data, setData] = useState([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [searchCount, setSearchCount] = useState(0);
+  const debounceTimer = useRef(null);
   const router = useRouter();
+  const { isPremium, isLoading: subscriptionLoading } = useSubscription();
+
+  const FREE_SEARCH_LIMIT = 10;
 
   useEffect(() => {
     fetch(DATA_URL)
@@ -37,17 +77,69 @@ export default function HomeScreen() {
   }, []);
 
   const fuse = useMemo(() => {
+    if (data.length === 0) return null;
     return new Fuse(data, {
       keys: ['Diagnosis Code (ICD-10)', 'Description'],
       threshold: 0.4,
+      ignoreLocation: true,
+      findAllMatches: false,
+      minMatchCharLength: 2,
     });
   }, [data]);
 
+  // Debounce search input and track search count
+  useEffect(() => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      
+      // Increment search count for non-empty searches
+      if (search.trim() && !isPremium) {
+        setSearchCount(prev => prev + 1);
+      }
+    }, 300);
+    
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [search, isPremium]);
+
   const filteredData = useMemo(() => {
-    if (!search) return data;
-    const results = fuse.search(search);
+    if (!debouncedSearch.trim()) return data;
+    if (!fuse) return data;
+    
+    // Check search limit for free users
+    if (!isPremium && searchCount >= FREE_SEARCH_LIMIT) {
+      return [];
+    }
+    
+    const results = fuse.search(debouncedSearch);
     return results.map(result => result.item);
-  }, [search, fuse, data]);
+  }, [debouncedSearch, fuse, data, isPremium, searchCount]);
+
+  const handleItemPress = useCallback((item) => {
+    router.push({ pathname: '/detail', params: item });
+  }, [router]);
+
+  const handleUpgradePress = () => {
+    router.push('/paywall');
+  };
+
+
+  const showUpgradePrompt = () => {
+    Alert.alert(
+      'Search Limit Reached',
+      `You've reached the free limit of ${FREE_SEARCH_LIMIT} searches. Upgrade to Pro for unlimited searches and advanced features.`,
+      [
+        { text: 'Maybe Later', style: 'cancel' },
+        { text: 'Upgrade Now', onPress: handleUpgradePress }
+      ]
+    );
+  };
 
   if (loading) {
     return (
@@ -109,21 +201,51 @@ export default function HomeScreen() {
                 </Text>
               </View>
             )}
-            <TouchableOpacity
-              onPress={() => router.push('/about')}
-              style={{
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-              }}
-            >
-              <Text style={{
-                color: '#007AFF',
-                fontSize: 16,
-                textDecorationLine: 'underline',
-              }}>
-                About
-              </Text>
-            </TouchableOpacity>
+            <View style={{ alignItems: 'flex-end' }}>
+              {isPremium ? (
+                <View style={{
+                  backgroundColor: '#28a745',
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 4,
+                  marginBottom: 4,
+                }}>
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>
+                    PRO
+                  </Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={handleUpgradePress}
+                  style={{
+                    backgroundColor: '#007AFF',
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderRadius: 4,
+                    marginBottom: 4,
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>
+                    UPGRADE
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={() => router.push('/about')}
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                }}
+              >
+                <Text style={{
+                  color: '#007AFF',
+                  fontSize: 16,
+                  textDecorationLine: 'underline',
+                }}>
+                  About
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
           
           <Text style={{
@@ -139,59 +261,99 @@ export default function HomeScreen() {
         {/* Search bar with tight spacing */}
         <View style={{ paddingHorizontal: 16, paddingVertical: 4 }}>
           <TextInput
-            placeholder="Search by code or description..."
+            placeholder={
+              !isPremium && searchCount >= FREE_SEARCH_LIMIT 
+                ? "Upgrade to Pro for unlimited searches" 
+                : "Search by code or description..."
+            }
             value={search}
             onChangeText={setSearch}
+            editable={isPremium || searchCount < FREE_SEARCH_LIMIT}
             style={{
               borderWidth: 1,
-              borderColor: '#ccc',
+              borderColor: !isPremium && searchCount >= FREE_SEARCH_LIMIT ? '#dc3545' : '#ccc',
               padding: 10,
               borderRadius: 8,
               fontSize: 16,
-              backgroundColor: '#fafafa',
+              backgroundColor: !isPremium && searchCount >= FREE_SEARCH_LIMIT ? '#f8d7da' : '#fafafa',
+              opacity: !isPremium && searchCount >= FREE_SEARCH_LIMIT ? 0.7 : 1,
             }}
           />
+          {!isPremium && (
+            <View style={{ marginTop: 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ 
+                fontSize: 12, 
+                color: searchCount >= FREE_SEARCH_LIMIT ? '#dc3545' : '#666' 
+              }}>
+                Searches: {searchCount}/{FREE_SEARCH_LIMIT} (Free)
+              </Text>
+              {searchCount >= FREE_SEARCH_LIMIT && (
+                <TouchableOpacity onPress={handleUpgradePress}>
+                  <Text style={{ fontSize: 12, color: '#007AFF', textDecorationLine: 'underline' }}>
+                    Upgrade Now
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Content list maximized */}
-        <FlatList
-          data={filteredData}
-          keyExtractor={(item, index) => `${item['Diagnosis Code (ICD-10)']}_${index}`}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingHorizontal: 16 }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: '/detail', params: item })}
+        {!isPremium && searchCount >= FREE_SEARCH_LIMIT && search.trim() ? (
+          <View style={{ 
+            flex: 1, 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            paddingHorizontal: 20 
+          }}>
+            <Text style={{ 
+              fontSize: 18, 
+              fontWeight: 'bold', 
+              color: '#333', 
+              textAlign: 'center', 
+              marginBottom: 10 
+            }}>
+              Search Limit Reached
+            </Text>
+            <Text style={{ 
+              fontSize: 16, 
+              color: '#666', 
+              textAlign: 'center', 
+              marginBottom: 20,
+              lineHeight: 22 
+            }}>
+              You've used all {FREE_SEARCH_LIMIT} free searches. Upgrade to Pro for unlimited searches and advanced features.
+            </Text>
+            <TouchableOpacity 
+              style={{
+                backgroundColor: '#007AFF',
+                paddingHorizontal: 30,
+                paddingVertical: 15,
+                borderRadius: 25,
+              }}
+              onPress={handleUpgradePress}
             >
-              <View
-                style={{
-                  paddingVertical: 10,
-                  borderBottomWidth: 1,
-                  borderBottomColor: '#eee',
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontWeight: 'bold', fontSize: 16 }}>
-                    {item['Diagnosis Code (ICD-10)']}
-                  </Text>
-                  {item['Has V28 HCC code'] === 'Yes' && (
-                    <View
-                      style={{
-                        backgroundColor: '#007BFF',
-                        paddingHorizontal: 6,
-                        paddingVertical: 2,
-                        borderRadius: 4,
-                      }}
-                    >
-                      <Text style={{ color: 'white', fontSize: 12 }}>CMS-HCC V28</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={{ color: '#555', marginTop: 2 }}>{item['Description']}</Text>
-              </View>
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600' }}>
+                Upgrade to Pro
+              </Text>
             </TouchableOpacity>
-          )}
-        />
+          </View>
+        ) : (
+          <FlatList
+            data={filteredData}
+            keyExtractor={(item, index) => `${item['Diagnosis Code (ICD-10)']}_${index}`}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ paddingHorizontal: 16 }}
+            renderItem={({ item }) => (
+              <ListItem item={item} onPress={handleItemPress} />
+            )}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={20}
+            windowSize={10}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
