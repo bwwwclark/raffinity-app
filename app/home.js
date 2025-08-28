@@ -58,16 +58,30 @@ export default function HomeScreen() {
   const [imageError, setImageError] = useState(false);
   const [searchCount, setSearchCount] = useState(0);
   const debounceTimer = useRef(null);
+  const searchCache = useRef(new Map());
+  const codeIndex = useRef(new Map()); // Fast lookup for exact code matches
   const router = useRouter();
   const { isPremium, isLoading: subscriptionLoading } = useSubscription();
 
   const FREE_SEARCH_LIMIT = 10;
+  const MAX_SEARCH_RESULTS = 50; // Limit results for better performance
 
   useEffect(() => {
     fetch(DATA_URL)
       .then((res) => res.json())
       .then((json) => {
         setData(json);
+        
+        // Build code index for fast exact matches
+        const index = new Map();
+        json.forEach((item, idx) => {
+          const code = item['Diagnosis Code (ICD-10)'];
+          if (code) {
+            index.set(code.toLowerCase(), idx);
+          }
+        });
+        codeIndex.current = index;
+        
         setLoading(false);
       })
       .catch((err) => {
@@ -79,11 +93,17 @@ export default function HomeScreen() {
   const fuse = useMemo(() => {
     if (data.length === 0) return null;
     return new Fuse(data, {
-      keys: ['Diagnosis Code (ICD-10)', 'Description'],
-      threshold: 0.4,
+      keys: [
+        { name: 'Diagnosis Code (ICD-10)', weight: 0.7 },
+        { name: 'Description', weight: 0.3 }
+      ],
+      threshold: 0.3, // More strict matching for better performance
       ignoreLocation: true,
       findAllMatches: false,
       minMatchCharLength: 2,
+      distance: 100, // Limit search distance
+      maxPatternLength: 32, // Limit pattern length
+      includeScore: true, // Include score for sorting
     });
   }, [data]);
 
@@ -99,7 +119,7 @@ export default function HomeScreen() {
       if (search.trim() && !isPremium) {
         setSearchCount(prev => prev + 1);
       }
-    }, 300);
+    }, 150); // Reduced from 300ms to 150ms for faster response
     
     return () => {
       if (debounceTimer.current) {
@@ -117,9 +137,46 @@ export default function HomeScreen() {
       return [];
     }
     
-    const results = fuse.search(debouncedSearch);
-    return results.map(result => result.item);
-  }, [debouncedSearch, fuse, data, isPremium, searchCount]);
+    // Performance monitoring
+    const startTime = performance.now();
+    
+    // Check cache first
+    const cacheKey = `${debouncedSearch.toLowerCase()}_${isPremium}`;
+    if (searchCache.current.has(cacheKey)) {
+      console.log(`🚀 Cache hit for "${debouncedSearch}" in ${(performance.now() - startTime).toFixed(1)}ms`);
+      return searchCache.current.get(cacheKey);
+    }
+    
+    // Fast path for exact code matches (e.g., "A00.0")
+    const searchLower = debouncedSearch.toLowerCase().trim();
+    const exactIndex = codeIndex.current.get(searchLower);
+    if (exactIndex !== undefined && data[exactIndex]) {
+      console.log(`⚡ Exact match for "${debouncedSearch}" in ${(performance.now() - startTime).toFixed(1)}ms`);
+      const result = [data[exactIndex]];
+      searchCache.current.set(cacheKey, result);
+      return result;
+    }
+    
+    // Perform search with result limiting
+    const results = fuse.search(debouncedSearch, { limit: MAX_SEARCH_RESULTS });
+    
+    // Sort by relevance score (lower is better in Fuse.js)
+    const sortedResults = results
+      .sort((a, b) => (a.score || 0) - (b.score || 0))
+      .map(result => result.item);
+    
+    // Cache the results (keep cache size reasonable)
+    if (searchCache.current.size > 100) {
+      const firstKey = searchCache.current.keys().next().value;
+      searchCache.current.delete(firstKey);
+    }
+    searchCache.current.set(cacheKey, sortedResults);
+    
+    const endTime = performance.now();
+    console.log(`🔍 Search for "${debouncedSearch}" completed in ${(endTime - startTime).toFixed(1)}ms (${sortedResults.length} results)`);
+    
+    return sortedResults;
+  }, [debouncedSearch, fuse, data, isPremium, searchCount, MAX_SEARCH_RESULTS]);
 
   const handleItemPress = useCallback((item) => {
     router.push({ pathname: '/detail', params: item });
@@ -348,10 +405,16 @@ export default function HomeScreen() {
               <ListItem item={item} onPress={handleItemPress} />
             )}
             removeClippedSubviews={true}
-            maxToRenderPerBatch={10}
-            updateCellsBatchingPeriod={50}
-            initialNumToRender={20}
-            windowSize={10}
+            maxToRenderPerBatch={8}
+            updateCellsBatchingPeriod={30}
+            initialNumToRender={15}
+            windowSize={8}
+            getItemLayout={(data, index) => ({
+              length: 70, // Approximate item height
+              offset: 70 * index,
+              index,
+            })}
+            disableVirtualization={false}
           />
         )}
       </View>
