@@ -53,11 +53,12 @@ const ListItem = React.memo(({ item, onPress }) => (
 export default function HomeScreen() {
   const [data, setData] = useState([]);
   const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [activeSearch, setActiveSearch] = useState(''); // The actual search being performed
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [searchCount, setSearchCount] = useState(0);
-  const debounceTimer = useRef(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const pauseTimer = useRef(null);
   const searchCache = useRef(new Map());
   const codeIndex = useRef(new Map()); // Fast lookup for exact code matches
   const router = useRouter();
@@ -65,6 +66,7 @@ export default function HomeScreen() {
 
   const FREE_SEARCH_LIMIT = 10;
   const MAX_SEARCH_RESULTS = 50; // Limit results for better performance
+  const PAUSE_DELAY = 500; // Half second pause before auto-search
 
   useEffect(() => {
     fetch(DATA_URL)
@@ -107,29 +109,53 @@ export default function HomeScreen() {
     });
   }, [data]);
 
-  // Debounce search input and track search count
+  // Handle search input with pause detection
   useEffect(() => {
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
+    if (pauseTimer.current) {
+      clearTimeout(pauseTimer.current);
     }
-    debounceTimer.current = setTimeout(() => {
-      setDebouncedSearch(search);
-      
-      // Increment search count for non-empty searches
-      if (search.trim() && !isPremium) {
-        setSearchCount(prev => prev + 1);
-      }
-    }, 150); // Reduced from 300ms to 150ms for faster response
+    
+    // Only set timer if there's actual search text
+    if (search.trim()) {
+      setIsSearching(true);
+      pauseTimer.current = setTimeout(() => {
+        performSearch(search.trim());
+      }, PAUSE_DELAY);
+    } else {
+      setActiveSearch('');
+      setIsSearching(false);
+    }
     
     return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
+      if (pauseTimer.current) {
+        clearTimeout(pauseTimer.current);
       }
     };
   }, [search, isPremium]);
 
+  // Perform search function
+  const performSearch = useCallback((searchTerm) => {
+    setIsSearching(false);
+    setActiveSearch(searchTerm);
+    
+    // Increment search count for non-empty searches
+    if (!isPremium) {
+      setSearchCount(prev => prev + 1);
+    }
+  }, [isPremium]);
+
+  // Handle return key press
+  const handleSearchSubmit = useCallback(() => {
+    if (search.trim()) {
+      if (pauseTimer.current) {
+        clearTimeout(pauseTimer.current);
+      }
+      performSearch(search.trim());
+    }
+  }, [search, performSearch]);
+
   const filteredData = useMemo(() => {
-    if (!debouncedSearch.trim()) return data;
+    if (!activeSearch.trim()) return data;
     if (!fuse) return data;
     
     // Check search limit for free users
@@ -141,24 +167,24 @@ export default function HomeScreen() {
     const startTime = performance.now();
     
     // Check cache first
-    const cacheKey = `${debouncedSearch.toLowerCase()}_${isPremium}`;
+    const cacheKey = `${activeSearch.toLowerCase()}_${isPremium}`;
     if (searchCache.current.has(cacheKey)) {
-      console.log(`🚀 Cache hit for "${debouncedSearch}" in ${(performance.now() - startTime).toFixed(1)}ms`);
+      console.log(`🚀 Cache hit for "${activeSearch}" in ${(performance.now() - startTime).toFixed(1)}ms`);
       return searchCache.current.get(cacheKey);
     }
     
     // Fast path for exact code matches (e.g., "A00.0")
-    const searchLower = debouncedSearch.toLowerCase().trim();
+    const searchLower = activeSearch.toLowerCase().trim();
     const exactIndex = codeIndex.current.get(searchLower);
     if (exactIndex !== undefined && data[exactIndex]) {
-      console.log(`⚡ Exact match for "${debouncedSearch}" in ${(performance.now() - startTime).toFixed(1)}ms`);
+      console.log(`⚡ Exact match for "${activeSearch}" in ${(performance.now() - startTime).toFixed(1)}ms`);
       const result = [data[exactIndex]];
       searchCache.current.set(cacheKey, result);
       return result;
     }
     
     // Perform search with result limiting
-    const results = fuse.search(debouncedSearch, { limit: MAX_SEARCH_RESULTS });
+    const results = fuse.search(activeSearch, { limit: MAX_SEARCH_RESULTS });
     
     // Sort by relevance score (lower is better in Fuse.js)
     const sortedResults = results
@@ -173,10 +199,10 @@ export default function HomeScreen() {
     searchCache.current.set(cacheKey, sortedResults);
     
     const endTime = performance.now();
-    console.log(`🔍 Search for "${debouncedSearch}" completed in ${(endTime - startTime).toFixed(1)}ms (${sortedResults.length} results)`);
+    console.log(`🔍 Search for "${activeSearch}" completed in ${(endTime - startTime).toFixed(1)}ms (${sortedResults.length} results)`);
     
     return sortedResults;
-  }, [debouncedSearch, fuse, data, isPremium, searchCount, MAX_SEARCH_RESULTS]);
+  }, [activeSearch, fuse, data, isPremium, searchCount, MAX_SEARCH_RESULTS]);
 
   const handleItemPress = useCallback((item) => {
     router.push({ pathname: '/detail', params: item });
@@ -321,14 +347,20 @@ export default function HomeScreen() {
             placeholder={
               !isPremium && searchCount >= FREE_SEARCH_LIMIT 
                 ? "Upgrade to Pro for unlimited searches" 
-                : "Search by code or description..."
+                : "Search by code or description... (Press Enter or pause 0.5s)"
             }
             value={search}
             onChangeText={setSearch}
+            onSubmitEditing={handleSearchSubmit}
+            returnKeyType="search"
             editable={isPremium || searchCount < FREE_SEARCH_LIMIT}
             style={{
-              borderWidth: 1,
-              borderColor: !isPremium && searchCount >= FREE_SEARCH_LIMIT ? '#dc3545' : '#ccc',
+              borderWidth: 2,
+              borderColor: !isPremium && searchCount >= FREE_SEARCH_LIMIT 
+                ? '#dc3545' 
+                : isSearching 
+                ? '#007AFF' 
+                : '#ccc',
               padding: 10,
               borderRadius: 8,
               fontSize: 16,
@@ -336,6 +368,20 @@ export default function HomeScreen() {
               opacity: !isPremium && searchCount >= FREE_SEARCH_LIMIT ? 0.7 : 1,
             }}
           />
+          {isSearching && (
+            <View style={{ 
+              position: 'absolute', 
+              right: 10, 
+              top: 12,
+              flexDirection: 'row',
+              alignItems: 'center'
+            }}>
+              <ActivityIndicator size="small" color="#007AFF" />
+              <Text style={{ marginLeft: 6, fontSize: 12, color: '#007AFF' }}>
+                Searching...
+              </Text>
+            </View>
+          )}
           {!isPremium && (
             <View style={{ marginTop: 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={{ 

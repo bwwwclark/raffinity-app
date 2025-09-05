@@ -8,7 +8,7 @@
       "android",
       "web"
     ],
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/rafinity-logo.png",
     "splash": {
@@ -24,7 +24,6 @@
     ],
     "ios": {
       "bundleIdentifier": "com.rafinity.app",
-      "buildNumber": "1.0.1",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -41,7 +40,6 @@
       "favicon": "./assets/rafinity-logo.png"
     },
     "plugins": [
-      "react-native-kochava-measurement/expo-kochava",
       [
         "expo-router",
         {
