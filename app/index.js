@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Image, Dimensions, Platform, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, Image, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { KochavaMeasurement } from 'react-native-kochava-measurement';
 import Purchases, { LOG_LEVEL } from 'react-native-purchases';
 

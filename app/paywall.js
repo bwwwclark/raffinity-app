@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  ScrollView,
-  Alert,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import Purchases from 'react-native-purchases';
 
 export default function PaywallScreen() {
@@ -25,6 +25,7 @@ export default function PaywallScreen() {
     try {
       const offerings = await Purchases.getOfferings();
       setOfferings(offerings);
+      console.log('offerings')
     } catch (error) {
       console.error('Error fetching offerings:', error);
       Alert.alert('Error', 'Unable to load subscription plans. Please try again.');
@@ -132,28 +133,37 @@ export default function PaywallScreen() {
 
       <View style={styles.packagesContainer}>
         {currentOffering.availablePackages.map((pkg, index) => (
+          <>
+          <Text style={styles.packagePrice}>
+              {pkg.identifier.includes('annual') ? "Annual" : "Monthly"}
+            </Text>
           <TouchableOpacity
             key={index}
             style={[
               styles.packageButton,
               index === 0 && styles.recommendedPackage
             ]}
-            onPress={() => purchasePackage(pkg)}
+            onPress={() =>{
+              console.log('asdsd', pkg)
+              purchasePackage(pkg)
+            }
+            
+
+            }
             disabled={purchasing}
           >
             {index === 0 && (
               <Text style={styles.recommendedLabel}>MOST POPULAR</Text>
             )}
             <Text style={styles.packageTitle}>
-              {pkg.product.title.replace('(RAFinity)', '')}
+            {pkg.identifier.includes('annual') ? "Annual" : "Monthly"}
             </Text>
             <Text style={styles.packagePrice}>
               {pkg.product.priceString}
             </Text>
-            <Text style={styles.packageDescription}>
-              {pkg.product.description}
-            </Text>
+            
           </TouchableOpacity>
+          </>
         ))}
       </View>
 

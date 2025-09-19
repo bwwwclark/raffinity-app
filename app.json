@@ -23,6 +23,7 @@
       "**/*"
     ],
     "ios": {
+      "buildNumber":"1.0.25",
       "bundleIdentifier": "com.rafinity.app",
       "supportsTablet": true,
       "infoPlist": {
@@ -45,7 +46,8 @@
         {
           "origin": false
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
